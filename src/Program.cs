@@ -8,14 +8,14 @@ using static CountDown.Solver;
 
 namespace CountDown {
     public class BenchSolver {
-        private readonly List<long> _numbers = new List<long> { 7, 3, 4, 5, 15, 75 };
-        private readonly long _goal = 785;
+        private static readonly List<long> _numbers = new List<long> { 7, 3, 4, 5, 15, 75 };
+        private const long GOAL = 785;
 
         [Benchmark]
-        public List<Result> SolveCountdown() => Solver.Solve(_numbers, _goal);
+        public List<Result> SolveCountdown() => Solver.Solve(_numbers, GOAL);
     }
-    
-    class Program {
+
+    public static class Program {
         private const int MAX_TOP = 20;
 
         // should be run with n1 n2 n3 n4 n5 n6 n7 where
@@ -28,8 +28,8 @@ namespace CountDown {
         // good stress test example: 7 3 4 5 15 75 785
         // should yield 13 results in 175ms in debug mode
         public static void Main(string[] args) {
-            if (args[0].Equals("bench")) {
-                var summary = BenchmarkRunner.Run<BenchSolver>();
+            if (args.Length < 7) {
+                BenchmarkRunner.Run<BenchSolver>();
             } else {
                 var numbers = args.Select(long.Parse).ToList();
                 var goal = numbers.Pop();

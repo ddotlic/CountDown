@@ -7,7 +7,17 @@ namespace CountDown {
     public enum Op { Add, Sub, Mul, Div };
 
     public abstract class Result {
-        public long Total { get; protected set; }
+        private long _total;
+        private string _key;
+        public long Total {
+            get => _total;
+            protected set {
+                _total = value;
+                _key = value.ToString("X");
+            }
+        }
+
+        public string Key { get => _key; }
         public abstract int Operations { get; }
         public override string ToString() => AsString(Op.Add);
         public abstract string AsString(Op parentOp);
@@ -36,26 +46,16 @@ namespace CountDown {
 
         public override int Operations { get => 1 + _left.Operations + _right.Operations; }
 
+        private static readonly long[] _priority = {1, 2, 3, 3};
+        private static readonly string[] _operator = {"+", "-", "*", "/"};
+        private static readonly (string, string) _parens = ("(", ")");
+        private static readonly (string, string) _nothing = (string.Empty, string.Empty);
+        
         public override string AsString(Op parentOp) {
-            static int Priority(Op op) => op switch {
-                Op.Add => 1,
-                Op.Sub => 2,
-                Op.Mul => 3,
-                Op.Div => 3,
-                _ => throw new ArgumentException("Operator not supported")
-            };
-
-            static string Operator(Op op) => op switch {
-                Op.Add => "+",
-                Op.Sub => "-",
-                Op.Mul => "*",
-                Op.Div => "/",
-                _ => throw new ArgumentException("Operator not supported")
-            };
-
-            bool useParen = Priority(parentOp) > Priority(_op) || (parentOp == _op && _op == Op.Sub);
-            var (start, end) = useParen ? ("(", ")") : (string.Empty, string.Empty);
-            return $"{start}{_left.AsString(_op)} {Operator(_op)} {_right.AsString(_op)}{end}";
+            int op = (int)_op;
+            bool useParen = _priority[(int)parentOp] > _priority[op] || (parentOp == _op && _op == Op.Sub);
+            var (start, end) = useParen ? _parens : _nothing;
+            return $"{start}{_left.AsString(_op)} {_operator[op]} {_right.AsString(_op)}{end}";
         }
     }
 
@@ -84,8 +84,10 @@ namespace CountDown {
 
         public static List<Result> Solve(List<long> numbers, long goal) {
             _cache.Clear();
+            Combinations = 0;
             var results = new List<Result>();
-            var candidates = numbers.Select(num => new ValRes(num)).Cast<Result>().ToList();
+            var candidates = numbers.OrderBy(n => n)
+                .Select(num => new ValRes(num)).Cast<Result>().ToArray();
             SolveInternal(candidates, goal, results);
             return results.OrderBy(r => r.Operations).ToList();
         }
@@ -99,40 +101,52 @@ namespace CountDown {
 
         private static readonly HashSet<string> _cache = new HashSet<string>();
         private static readonly StringBuilder _builder = new StringBuilder(128);
-        
-        private static void SolveInternal(List<Result> candidates, long goal, List<Result> results) {
-            if (candidates.Count <= 1) return;
-            
-            // TODO: this bit is not optimized, (necessary) lookup is too costly
+
+        private static void SolveInternal(Result[] candidates, long goal, List<Result> results) {
+            if (candidates.Length <= 1) return;
+
+            int canLen = candidates.Length;
             _builder.Clear();
-            foreach(var c in candidates.OrderBy(c => c.Total)) {
-                _builder.Append(c.Total.ToString("X2")).Append(',');
-            }
+            for (int c = 0; c < canLen; ++c)
+                _builder.Append(candidates[c].Key).Append(',');
+
             var hash = _builder.ToString();
             if (_cache.Contains(hash)) {
-                 return;
+                return;
             }
             _cache.Add(hash);
             
-            for (int i = 0; i < candidates.Count; ++i) {
-                for (int j = 0; j < candidates.Count; ++j) {
+            for (int i = 0; i < canLen; ++i) {
+                for (int j = 0; j < canLen; ++j) {
                     if (i == j) continue;
                     var x = candidates[i];
                     var y = candidates[j];
-                    var combinations = _operations.Where(op => IsValid(op, x.Total, y.Total))
-                        .Select(op => Combine(op, x, y));
-                    foreach (var comb in combinations) {
+                    for (int k = 0; k < _operations.Length; ++k) {
+                        var op = _operations[k];
+                        if(!IsValid(op, x.Total, y.Total)) continue;
+                        var comb = Combine(op, x, y);
                         if (comb.Total == goal) {
                             results.Add(comb);
                             continue;
                         }
 
-                        if (candidates.Count == 2) continue;
-                        var rest = candidates.Where((c, ix) => ix != i && ix != j).ToList();
-
-                        rest.Add(comb);
+                        if (canLen == 2) continue;
+                        var rest = new Result[canLen - 1];
+                        bool placed = false;
+                        int r = 0;
+                        for (int l = 0; l < canLen; ++l) {
+                            if(l == i || l == j) continue;
+                            var can = candidates[l];
+                            if (!placed && can.Total >= comb.Total) {
+                                rest[r++] = comb;
+                                placed = true;
+                            }
+                            rest[r++] = can;
+                        }
+                        if(!placed) rest[r] = comb;
                         SolveInternal(rest, goal, results);
                     }
+                    
                 }
             }
 
