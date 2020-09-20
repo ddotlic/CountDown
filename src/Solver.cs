@@ -1,22 +1,12 @@
 using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace CountDown {
     public enum Op { Add, Sub, Mul, Div };
 
     public abstract class Result {
-        private long _total;
-        private string _key;
-        public long Total {
-            get => _total;
-            protected set {
-                _total = value;
-                _key = value.ToString("X");
-            }
-        }
+        public long Total { get; set; }
 
-        public string Key { get => _key; }
         public abstract int Operations { get; }
         public override string ToString() => AsString(Op.Add);
         public abstract string AsString(Op parentOp);
@@ -58,6 +48,22 @@ namespace CountDown {
         }
     }
 
+    internal class ResultsEqualityComparer : EqualityComparer<Result[]> {
+        public override bool Equals(Result[] x, Result[] y) {
+            if (x!.Length != y!.Length) return false;
+            for (int i = 0; i < x.Length; ++i) {
+                if (x[i].Total != y[i].Total) return false;
+            }
+
+            return true;
+        }
+
+        public override int GetHashCode(Result[] res) {
+            long s = 1;
+            for (int j = 0; j < res.Length; ++j) s = s * 127 + res[j].Total;
+            return (int)(s ^ (s >> 32));
+        }
+    }
     public static class Solver {
         private static readonly Op[] _operations = { Op.Add, Op.Sub, Op.Mul, Op.Div };
         private static int Comparer(Result a, Result b) => a.Total.CompareTo(b.Total);
@@ -101,23 +107,16 @@ namespace CountDown {
             Combinations++;
             return new AppRes(op, x, y, Apply(op, x.Total, y.Total));
         }
-
-        private static readonly HashSet<string> _cache = new HashSet<string>();
-        private static readonly StringBuilder _builder = new StringBuilder(128);
+        private static readonly HashSet<Result[]> _cache = new HashSet<Result[]>(new ResultsEqualityComparer());
 
         private static void SolveInternal(Result[] candidates, long goal) {
             if (candidates.Length <= 1) return;
 
             int canLen = candidates.Length;
-            _builder.Clear();
-            for (int c = 0; c < canLen; ++c)
-                _builder.Append(candidates[c].Key).Append(',');
-
-            var hash = _builder.ToString();
-            if (_cache.Contains(hash)) {
+            if (_cache.Contains(candidates)) {
                 return;
             }
-            _cache.Add(hash);
+            _cache.Add(candidates);
             
             for (int i = 0; i < canLen; ++i) {
                 for (int j = 0; j < canLen; ++j) {
