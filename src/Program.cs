@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Running;
 using static CountDown.Solver;
@@ -12,7 +11,7 @@ namespace CountDown {
         private const long GOAL = 785;
 
         [Benchmark]
-        public List<Result> SolveCountdown() => Solver.Solve(_numbers, GOAL);
+        public void SolveCountdown() => Solve(_numbers, GOAL);
     }
 
     public static class Program {
@@ -31,19 +30,21 @@ namespace CountDown {
             if (args.Length < 7) {
                 BenchmarkRunner.Run<BenchSolver>();
             } else {
-                var numbers = args.Select(long.Parse).ToList();
+                var numbers = new List<long>();
+                for(int a = 0; a < args.Length; ++a)
+                    numbers.Add(long.Parse(args[a]));
                 var goal = numbers.Pop();
                 var time = Stopwatch.StartNew();
-                var results = Solve(numbers, goal);
+                Solve(numbers, goal);
                 time.Stop();
-                var resultCount = results.Count;
+                var resultCount = Results.Count;
                 var top = Math.Min(resultCount, MAX_TOP);
                 var elapsed = time.ElapsedMilliseconds;
                 Console.WriteLine(
                     $"Found {resultCount} results in {elapsed} ms, tried {Combinations} combinations.");
                 Console.WriteLine($"Top {MAX_TOP} results (or less if there aren't as many)");
-                foreach (var result in results.Take(top)) {
-                    Console.WriteLine(result);
+                for (int r = 0; r < top; ++r) {
+                    Console.WriteLine(Results[r]);
                 }
             }
         }

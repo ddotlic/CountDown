@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 
 namespace CountDown {
@@ -61,7 +60,10 @@ namespace CountDown {
 
     public static class Solver {
         private static readonly Op[] _operations = { Op.Add, Op.Sub, Op.Mul, Op.Div };
-
+        private static int Comparer(Result a, Result b) => a.Total.CompareTo(b.Total);
+        public static int Combinations { get; private set; }
+        public static List<Result> Results { get; } = new List<Result>();
+        
         private static bool IsValid(Op op, long x, long y) {
             return op switch {
                 Op.Add => x <= y,
@@ -82,17 +84,18 @@ namespace CountDown {
             };
         }
 
-        public static List<Result> Solve(List<long> numbers, long goal) {
+        public static void Solve(List<long> numbers, long goal) {
             _cache.Clear();
             Combinations = 0;
-            var results = new List<Result>();
-            var candidates = numbers.OrderBy(n => n)
-                .Select(num => new ValRes(num)).Cast<Result>().ToArray();
-            SolveInternal(candidates, goal, results);
-            return results.OrderBy(r => r.Operations).ToList();
+            var candidates = new Result[6];
+            for (int n = 0; n < numbers.Count; n++) 
+                candidates[n] = new ValRes(numbers[n]);
+            Array.Sort(candidates, Comparer);
+            Results.Clear();
+            SolveInternal(candidates, goal);
+            Results.Sort(Comparer);
         }
 
-        public static int Combinations;
 
         private static Result Combine(Op op, Result x, Result y) {
             Combinations++;
@@ -102,7 +105,7 @@ namespace CountDown {
         private static readonly HashSet<string> _cache = new HashSet<string>();
         private static readonly StringBuilder _builder = new StringBuilder(128);
 
-        private static void SolveInternal(Result[] candidates, long goal, List<Result> results) {
+        private static void SolveInternal(Result[] candidates, long goal) {
             if (candidates.Length <= 1) return;
 
             int canLen = candidates.Length;
@@ -126,25 +129,26 @@ namespace CountDown {
                         if(!IsValid(op, x.Total, y.Total)) continue;
                         var comb = Combine(op, x, y);
                         if (comb.Total == goal) {
-                            results.Add(comb);
-                            continue;
+                            Results.Add(comb);
                         }
+                        else if (canLen > 2) {
+                            var rest = new Result[canLen - 1];
+                            bool placed = false;
+                            int r = 0;
+                            for (int l = 0; l < canLen; ++l) {
+                                if (l == i || l == j) continue;
+                                var can = candidates[l];
+                                if (!placed && can.Total >= comb.Total) {
+                                    rest[r++] = comb;
+                                    placed = true;
+                                }
 
-                        if (canLen == 2) continue;
-                        var rest = new Result[canLen - 1];
-                        bool placed = false;
-                        int r = 0;
-                        for (int l = 0; l < canLen; ++l) {
-                            if(l == i || l == j) continue;
-                            var can = candidates[l];
-                            if (!placed && can.Total >= comb.Total) {
-                                rest[r++] = comb;
-                                placed = true;
+                                rest[r++] = can;
                             }
-                            rest[r++] = can;
+
+                            if (!placed) rest[r] = comb;
+                            SolveInternal(rest, goal);
                         }
-                        if(!placed) rest[r] = comb;
-                        SolveInternal(rest, goal, results);
                     }
                     
                 }
