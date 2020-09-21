@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.X86;
 
 namespace CountDown {
     public enum Op { Add, Sub, Mul, Div };
@@ -48,20 +50,19 @@ namespace CountDown {
         }
     }
 
-    internal class ResultsEqualityComparer : EqualityComparer<Result[]> {
-        public override bool Equals(Result[] x, Result[] y) {
-            if (x!.Length != y!.Length) return false;
-            for (int i = 0; i < x.Length; ++i) {
-                if (x[i].Total != y[i].Total) return false;
+    internal class ResultsEqualityComparer : EqualityComparer<Vector256<int>> {
+        public override bool Equals(Vector256<int> x, Vector256<int> y) {
+            if (Avx2.IsSupported) return Avx2.MoveMask(Avx2.CompareEqual(x, y).AsByte()) == -1;
+            for (int i = 0; i < 6; ++i) {
+                if (x.GetElement(i) != y.GetElement(i)) return false;
             }
 
             return true;
         }
 
-        public override int GetHashCode(Result[] res) {
-            long s = 1;
-            for (int j = 0; j < res.Length; ++j) s = s * 127 + res[j].Total;
-            return (int)(s ^ (s >> 32));
+        public override int GetHashCode(Vector256<int> res) {
+            return HashCode.Combine(res.GetElement(0), res.GetElement(1), res.GetElement(2),
+                res.GetElement(3), res.GetElement(4), res.GetElement(5));
         }
     }
 
@@ -71,8 +72,8 @@ namespace CountDown {
         public static int Combinations { get; private set; }
         public static List<Result> Results { get; } = new List<Result>();
 
-        private static readonly HashSet<Result[]> _cache =
-            new HashSet<Result[]>(new ResultsEqualityComparer());
+        private static readonly HashSet<Vector256<int>> _cache =
+            new HashSet<Vector256<int>>(130_000, new ResultsEqualityComparer());
 
         private static bool IsValid(Op op, long x, long y) {
             return op switch {
@@ -116,11 +117,18 @@ namespace CountDown {
             if (candidates.Length <= 1) return;
 
             int canLen = candidates.Length;
-            if (_cache.Contains(candidates)) {
+            Span<int> nums = stackalloc int[6];
+            for (int c = 0; c < canLen; ++c) {
+                nums[c] = (int)candidates[c].Total;
+            }
+
+            Vector256<int> vec = Vector256.Create(nums[0], nums[1], nums[2], nums[3], nums[4], nums[5],
+                0, 0);
+            if (_cache.Contains(vec)) {
                 return;
             }
 
-            _cache.Add(candidates);
+            _cache.Add(vec);
 
             for (int i = 0; i < canLen; ++i) {
                 for (int j = 0; j < canLen; ++j) {
