@@ -16,7 +16,7 @@ namespace CountDown {
 #if DEBUG
         private const int _turns = 10;
 #else        
-        private const int _turns = 150;
+        private const int _turns = 250;
 #endif
         
         // few results: using 1 1 4 7 15 50 522 should yield

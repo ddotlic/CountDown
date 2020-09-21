@@ -50,30 +50,31 @@ namespace CountDown {
         }
     }
 
-    internal class ResultsEqualityComparer : EqualityComparer<Vector256<int>> {
-        public override bool Equals(Vector256<int> x, Vector256<int> y) {
-            if (Avx2.IsSupported) return Avx2.MoveMask(Avx2.CompareEqual(x, y).AsByte()) == -1;
-            for (int i = 0; i < 6; ++i) {
+    internal class ResultsEqualityComparer : EqualityComparer<Vector128<int>> {
+        private Vector128<int> AllBitsSet => Vector128.Create(-1, -1, -1, -1);
+        public override bool Equals(Vector128<int> x, Vector128<int> y) {
+            if(Sse41.IsSupported) Sse41.TestZ(Sse2.Xor(x, y), AllBitsSet);
+            for (int i = 0; i < 4; ++i) {
                 if (x.GetElement(i) != y.GetElement(i)) return false;
             }
 
             return true;
         }
 
-        public override int GetHashCode(Vector256<int> res) {
-            return HashCode.Combine(res.GetElement(0), res.GetElement(1), res.GetElement(2),
-                res.GetElement(3), res.GetElement(4), res.GetElement(5));
+        public override int GetHashCode(Vector128<int> v) {
+            return HashCode.Combine(v.GetElement(0), v.GetElement(1), v.GetElement(2), v.GetElement(3));
         }
     }
 
     public static class Solver {
+        private const int _usedBits = 21;
         private static readonly Op[] _operations = { Op.Add, Op.Sub, Op.Mul, Op.Div };
         private static int Comparer(Result a, Result b) => a.Total.CompareTo(b.Total);
         public static int Combinations { get; private set; }
         public static List<Result> Results { get; } = new List<Result>();
 
-        private static readonly HashSet<Vector256<int>> _cache =
-            new HashSet<Vector256<int>>(130_000, new ResultsEqualityComparer());
+        private static readonly HashSet<Vector128<int>> _cache =
+            new HashSet<Vector128<int>>(130_000, new ResultsEqualityComparer());
 
         private static bool IsValid(Op op, long x, long y) {
             return op switch {
@@ -113,17 +114,22 @@ namespace CountDown {
             return new AppRes(op, x, y, Apply(op, x.Total, y.Total));
         }
 
+
         private static void SolveInternal(Result[] candidates, long goal) {
             if (candidates.Length <= 1) return;
 
             int canLen = candidates.Length;
-            Span<int> nums = stackalloc int[6];
+            Span<int> nums = stackalloc int[4];
             for (int c = 0; c < canLen; ++c) {
-                nums[c] = (int)candidates[c].Total;
+                int shift = _usedBits * (c % 3);
+                int ix = c < 3 ? 0 : 2;
+                long bits = candidates[c].Total << shift;
+                nums[ix] |= (int)(bits & 0xFFFFFFFF);
+                nums[ix + 1] |= (int)(bits >> 32);
             }
 
-            Vector256<int> vec = Vector256.Create(nums[0], nums[1], nums[2], nums[3], nums[4], nums[5],
-                0, 0);
+            Vector128<int> vec = Vector128.Create(nums[0], nums[1], nums[2], nums[3]);
+
             if (_cache.Contains(vec)) {
                 return;
             }
