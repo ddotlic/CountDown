@@ -5,7 +5,7 @@ namespace CountDown {
     public enum Op { Add, Sub, Mul, Div };
 
     public abstract class Result {
-        public long Total { get; set; }
+        public long Total { get; protected set; }
 
         public abstract int Operations { get; }
         public override string ToString() => AsString(Op.Add);
@@ -35,11 +35,11 @@ namespace CountDown {
 
         public override int Operations { get => 1 + _left.Operations + _right.Operations; }
 
-        private static readonly long[] _priority = {1, 2, 3, 3};
-        private static readonly string[] _operator = {"+", "-", "*", "/"};
+        private static readonly long[] _priority = { 1, 2, 3, 3 };
+        private static readonly string[] _operator = { "+", "-", "*", "/" };
         private static readonly (string, string) _parens = ("(", ")");
         private static readonly (string, string) _nothing = (string.Empty, string.Empty);
-        
+
         public override string AsString(Op parentOp) {
             int op = (int)_op;
             bool useParen = _priority[(int)parentOp] > _priority[op] || (parentOp == _op && _op == Op.Sub);
@@ -64,12 +64,16 @@ namespace CountDown {
             return (int)(s ^ (s >> 32));
         }
     }
+
     public static class Solver {
         private static readonly Op[] _operations = { Op.Add, Op.Sub, Op.Mul, Op.Div };
         private static int Comparer(Result a, Result b) => a.Total.CompareTo(b.Total);
         public static int Combinations { get; private set; }
         public static List<Result> Results { get; } = new List<Result>();
-        
+
+        private static readonly HashSet<Result[]> _cache =
+            new HashSet<Result[]>(new ResultsEqualityComparer());
+
         private static bool IsValid(Op op, long x, long y) {
             return op switch {
                 Op.Add => x <= y,
@@ -94,7 +98,7 @@ namespace CountDown {
             _cache.Clear();
             Combinations = 0;
             var candidates = new Result[6];
-            for (int n = 0; n < numbers.Count; n++) 
+            for (int n = 0; n < numbers.Count; n++)
                 candidates[n] = new ValRes(numbers[n]);
             Array.Sort(candidates, Comparer);
             Results.Clear();
@@ -107,7 +111,6 @@ namespace CountDown {
             Combinations++;
             return new AppRes(op, x, y, Apply(op, x.Total, y.Total));
         }
-        private static readonly HashSet<Result[]> _cache = new HashSet<Result[]>(new ResultsEqualityComparer());
 
         private static void SolveInternal(Result[] candidates, long goal) {
             if (candidates.Length <= 1) return;
@@ -116,8 +119,9 @@ namespace CountDown {
             if (_cache.Contains(candidates)) {
                 return;
             }
+
             _cache.Add(candidates);
-            
+
             for (int i = 0; i < canLen; ++i) {
                 for (int j = 0; j < canLen; ++j) {
                     if (i == j) continue;
@@ -125,12 +129,11 @@ namespace CountDown {
                     var y = candidates[j];
                     for (int k = 0; k < _operations.Length; ++k) {
                         var op = _operations[k];
-                        if(!IsValid(op, x.Total, y.Total)) continue;
+                        if (!IsValid(op, x.Total, y.Total)) continue;
                         var comb = Combine(op, x, y);
                         if (comb.Total == goal) {
                             Results.Add(comb);
-                        }
-                        else if (canLen > 2) {
+                        } else if (canLen > 2) {
                             var rest = new Result[canLen - 1];
                             bool placed = false;
                             int r = 0;
@@ -149,10 +152,8 @@ namespace CountDown {
                             SolveInternal(rest, goal);
                         }
                     }
-                    
                 }
             }
-
         }
     }
 }
