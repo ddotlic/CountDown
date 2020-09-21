@@ -51,9 +51,10 @@ namespace CountDown {
     }
 
     internal class ResultsEqualityComparer : EqualityComparer<Vector128<int>> {
-        private Vector128<int> AllBitsSet => Vector128.Create(-1, -1, -1, -1);
+        private readonly Vector128<int> _allBitsSet = Vector128.Create(-1, -1, -1, -1);
+
         public override bool Equals(Vector128<int> x, Vector128<int> y) {
-            if(Sse41.IsSupported) Sse41.TestZ(Sse2.Xor(x, y), AllBitsSet);
+            if(Sse41.IsSupported) Sse41.TestZ(Sse2.Xor(x, y), _allBitsSet);
             for (int i = 0; i < 4; ++i) {
                 if (x.GetElement(i) != y.GetElement(i)) return false;
             }

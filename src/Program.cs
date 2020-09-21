@@ -12,7 +12,7 @@ namespace CountDown {
             var goal = long.Parse(args[6]);
             return (numbers, goal);
         }
-        private const int _maxTop = 20;
+        private const int _maxTop = 5;
 #if DEBUG
         private const int _turns = 10;
 #else        
