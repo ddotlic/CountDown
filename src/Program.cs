@@ -5,20 +5,21 @@ using static CountDown.Solver;
 
 namespace CountDown {
     public static class Program {
-        public static (List<long>, long) ParseArgs(string[] args) {
+        private static (List<long>, long) ParseArgs(string[] args) {
             var numbers = new List<long>();
             for (int a = 0; a < 6; ++a)
                 numbers.Add(long.Parse(args[a]));
             var goal = long.Parse(args[6]);
             return (numbers, goal);
         }
+
         private const int _maxTop = 5;
 #if DEBUG
         private const int _turns = 10;
-#else        
-        private const int _turns = 250;
+#else
+        private const int _turns = 256;
 #endif
-        
+
         // few results: using 1 1 4 7 15 50 522 should yield
         // 50 + (1 + 7) * (4 * 15 - 1) as the best result (and one more)
         // good stress test: using 7 3 4 5 15 75 785 should yield
@@ -39,6 +40,7 @@ namespace CountDown {
             for (int p = 0; p < _turns; ++p) {
                 Solve(numbers, goal);
             }
+
             time.Stop();
             var numResults = Results.Count;
             var top = Math.Min(numResults, _maxTop);
@@ -47,7 +49,7 @@ namespace CountDown {
                 $"Found {numResults} results with {_turns} turns in {elapsed} ms; tried {Combinations} combinations.");
             Console.WriteLine($"Top {_maxTop} results (or less if there aren't as many)");
             for (int r = 0; r < top; ++r) {
-                Console.WriteLine(Results[r]);
+                Console.WriteLine(Results[r].Format());
             }
         }
     }
