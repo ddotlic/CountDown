@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
-using System.Runtime.Intrinsics.X86;
 
 namespace CountDown {
     public static class Fmt {
@@ -76,15 +75,8 @@ namespace CountDown {
     }
 
     internal class ResultsEqualityComparer : EqualityComparer<Vector128<int>> {
-        private readonly Vector128<int> _allBitsSet = Vector128.Create(-1, -1, -1, -1);
-
         public override bool Equals(Vector128<int> x, Vector128<int> y) {
-            if (Sse41.IsSupported) Sse41.TestZ(Sse2.Xor(x, y), _allBitsSet);
-            for (int i = 0; i < 4; ++i) {
-                if (x.GetElement(i) != y.GetElement(i)) return false;
-            }
-
-            return true;
+            return x.Equals(y);
         }
 
         public override int GetHashCode(Vector128<int> v) {
@@ -94,7 +86,6 @@ namespace CountDown {
     }
 
     public static class Solver {
-        private const int _usedBits = 21;
         private static readonly Op[] _operations = { Op.Add, Op.Sub, Op.Mul, Op.Div };
         private static int TotalComparer(Result a, Result b) => a.Total.CompareTo(b.Total);
         private static int OperationsComparer(Result a, Result b) => a.Operations.CompareTo(b.Operations);
@@ -105,6 +96,13 @@ namespace CountDown {
         private static readonly HashSet<Vector128<int>> _cache =
             new HashSet<Vector128<int>>(130_000, new ResultsEqualityComparer());
 
+        private static readonly Result[] _memory = new Result[16];
+        private static int _offset;
+
+        private static readonly (int, int)[] _packIndices = {
+            (0, 0), (21, 0), (42, 0), (0, 2), (21, 2), (42, 2),
+        };
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static bool IsValid(Op op, long x, long y) {
             return op switch {
@@ -114,6 +112,18 @@ namespace CountDown {
                 Op.Div => y > 1 & ((x % y) == 0),
                 _ => throw new ArgumentException("Operator not supported")
             };
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static Span<Result> GetSlice(int len) {
+            var slice = new Span<Result>(_memory, _offset, len);
+            _offset += len;
+            return slice;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void ReturnSlice(int len) {
+            _offset -= len;
         }
 
         public static void Solve(List<long> numbers, long goal) {
@@ -134,27 +144,31 @@ namespace CountDown {
             return new AppRes(op, x, y);
         }
 
-
-        private static void SolveInternal(Result[] candidates, long goal) {
-            if (candidates.Length <= 1) return;
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static Vector128<int> PackCandidates(Span<Result> candidates) {
             int canLen = candidates.Length;
             Span<int> nums = stackalloc int[4];
             for (int c = 0; c < canLen; ++c) {
-                int shift = _usedBits * (c % 3);
-                int ix = c < 3 ? 0 : 2;
+                (int shift, int ix) = _packIndices[c];
                 long bits = candidates[c].Total << shift;
                 nums[ix] |= (int)(bits & 0xFFFFFFFF);
                 nums[ix + 1] |= (int)(bits >> 32);
             }
 
-            Vector128<int> vec = Vector128.Create(nums[0], nums[1], nums[2], nums[3]);
+            return Vector128.Create(nums[0], nums[1], nums[2], nums[3]);
+        }
 
-            if (_cache.Contains(vec)) {
+        private static void SolveInternal(Span<Result> candidates, long goal) {
+            int canLen = candidates.Length;
+            if (canLen <= 1) return;
+
+            Vector128<int> packed = PackCandidates(candidates);
+
+            if (_cache.Contains(packed))
                 return;
-            }
 
-            _cache.Add(vec);
+
+            _cache.Add(packed);
 
             for (int i = 0; i < canLen; ++i) {
                 for (int j = 0; j < canLen; ++j) {
@@ -170,7 +184,7 @@ namespace CountDown {
                         if (comb.Total == goal) {
                             Results.Add(comb);
                         } else if (canLen > 2) {
-                            var rest = new Result[canLen - 1];
+                            var rest = GetSlice(canLen - 1);
                             bool placed = false;
                             int r = 0;
                             for (int l = 0; l < canLen; ++l) {
@@ -186,6 +200,7 @@ namespace CountDown {
 
                             if (!placed) rest[r] = comb;
                             SolveInternal(rest, goal);
+                            ReturnSlice(canLen - 1);
                         }
                     }
                 }
