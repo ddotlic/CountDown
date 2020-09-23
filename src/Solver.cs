@@ -159,23 +159,19 @@ namespace CountDown {
         }
 
         private static void SolveInternal(Span<Result> candidates, long goal) {
-            int canLen = candidates.Length;
-            if (canLen <= 1) return;
 
             Vector128<int> packed = PackCandidates(candidates);
-
             if (_cache.Contains(packed))
                 return;
-
-
             _cache.Add(packed);
 
+            int canLen = candidates.Length;
             for (int i = 0; i < canLen; ++i) {
                 for (int j = 0; j < canLen; ++j) {
                     if (i == j) continue;
                     var x = candidates[i];
                     var y = candidates[j];
-                    for (int k = 0; k < _operations.Length; ++k) {
+                    for (int k = 0; k < 4; ++k) {
                         var op = _operations[k];
                         if (!IsValid(op, x.Total, y.Total))
                             continue;
