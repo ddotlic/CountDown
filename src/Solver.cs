@@ -91,10 +91,9 @@ namespace CountDown {
         private static int OperationsComparer(Result a, Result b) => a.Operations.CompareTo(b.Operations);
 
         public static int Combinations { get; private set; }
-        public static List<Result> Results { get; } = new List<Result>();
+        public static List<Result> Results { get; } = new();
 
-        private static readonly HashSet<Vector128<int>> _cache =
-            new HashSet<Vector128<int>>(130_000, new ResultsEqualityComparer());
+        private static readonly HashSet<Vector128<int>> _cache = new(130_000, new ResultsEqualityComparer());
 
         private static readonly Result[] _memory = new Result[16];
         private static int _offset;

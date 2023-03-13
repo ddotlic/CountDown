@@ -14,11 +14,7 @@ namespace CountDown {
         }
 
         private const int _maxTop = 5;
-#if DEBUG
         private const int _turns = 10;
-#else
-        private const int _turns = 512;
-#endif
 
         // few results: using 1 1 4 7 15 50 522 should yield
         // 50 + (1 + 7) * (4 * 15 - 1) as the best result (and one more)

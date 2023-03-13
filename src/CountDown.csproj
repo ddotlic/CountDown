@@ -3,7 +3,8 @@
   <PropertyGroup>
     <Version>1.0.10</Version>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net5.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
+    <PublishAot>true</PublishAot>
   </PropertyGroup>
 
 </Project>
