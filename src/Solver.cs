@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using System.Runtime.Intrinsics;
 
 namespace CountDown {
     public static class Fmt {
@@ -74,17 +73,6 @@ namespace CountDown {
         }
     }
 
-    internal class ResultsEqualityComparer : EqualityComparer<Vector128<int>> {
-        public override bool Equals(Vector128<int> x, Vector128<int> y) {
-            return x.Equals(y);
-        }
-
-        public override int GetHashCode(Vector128<int> v) {
-            return (41 * v.GetElement(0)) ^ (59 * v.GetElement(1)) ^ (73 * v.GetElement(2)) ^
-                   (97 * v.GetElement(3));
-        }
-    }
-
     public static class Solver {
         private static readonly Op[] _operations = { Op.Add, Op.Sub, Op.Mul, Op.Div };
         private static int TotalComparer(Result a, Result b) => a.Total.CompareTo(b.Total);
@@ -93,13 +81,13 @@ namespace CountDown {
         public static int Combinations { get; private set; }
         public static List<Result> Results { get; } = new();
 
-        private static readonly HashSet<Vector128<int>> _cache = new(130_000, new ResultsEqualityComparer());
+        private static readonly HashSet<UInt128> _cache = new(130_000);
 
         private static readonly Result[] _memory = new Result[16];
         private static int _offset;
 
         private static readonly (int, int)[] _packIndices = {
-            (0, 0), (21, 0), (42, 0), (0, 2), (21, 2), (42, 2),
+            (0, 0), (21, 0), (42, 0), (0, 1), (21, 1), (42, 1),
         };
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -144,22 +132,19 @@ namespace CountDown {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static Vector128<int> PackCandidates(Span<Result> candidates) {
+        private static UInt128 PackCandidates(Span<Result> candidates) {
             int canLen = candidates.Length;
-            Span<int> nums = stackalloc int[4];
+            Span<long> nums = stackalloc long[2];
             for (int c = 0; c < canLen; ++c) {
                 (int shift, int ix) = _packIndices[c];
-                long bits = candidates[c].Total << shift;
-                nums[ix] |= (int)(bits & 0xFFFFFFFF);
-                nums[ix + 1] |= (int)(bits >> 32);
+                nums[ix] |= candidates[c].Total << shift;
             }
-
-            return Vector128.Create(nums[0], nums[1], nums[2], nums[3]);
+            return new UInt128((ulong)nums[1], (ulong)nums[0]);
         }
 
         private static void SolveInternal(Span<Result> candidates, long goal) {
 
-            Vector128<int> packed = PackCandidates(candidates);
+            var packed = PackCandidates(candidates);
             if (_cache.Contains(packed))
                 return;
             _cache.Add(packed);
