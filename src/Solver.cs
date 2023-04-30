@@ -130,7 +130,7 @@ public static class Solver {
         var canLen = candidates.Length;
         Span<long> nums = stackalloc long[2];
         for (var c = 0; c < canLen; ++c) {
-            (var shift, var ix) = _packIndices[c];
+            var (shift, ix) = _packIndices[c];
             nums[ix] |= candidates[c].Total << shift;
         }
 

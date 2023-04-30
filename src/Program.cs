@@ -7,7 +7,7 @@ namespace CountDown;
 
 public static class Program {
     private const int _maxTop = 5;
-    private const int _turns = 128;
+    private const int _turns = 1000;
 
     private static (List<long>, long) ParseArgs(string[] args) {
         var numbers = new List<long>();
