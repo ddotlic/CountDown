@@ -36,9 +36,8 @@ public static class Program {
 
         var (numbers, goal) = ParseArgs(args);
         var time = Stopwatch.StartNew();
-        for (var p = 0; p < _turns; ++p) {
-            Solve(numbers, goal);
-        }
+        
+        Solve(numbers, goal, _turns);
 
         time.Stop();
         var numResults = Results.Count;

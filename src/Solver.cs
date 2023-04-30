@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Packed = System.ValueTuple<long, long>;
 
-namespace CountDown; 
+namespace CountDown;
 
 public static class Fmt {
     private static readonly long[] _priority = { 1, 2, 3, 3 };
@@ -105,17 +105,21 @@ public static class Solver {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void ReturnSlice(int len) => _offset -= len;
 
-    public static void Solve(List<long> numbers, long goal) {
-        _cache.Clear();
-        Combinations = 0;
+    public static void Solve(List<long> numbers, long goal, int turns) {
         var candidates = new Result[6];
         for (var n = 0; n < numbers.Count; n++) {
             candidates[n] = new ValRes(numbers[n]);
         }
 
         Array.Sort(candidates, TotalComparer);
-        Results.Clear();
-        SolveInternal(candidates, goal);
+
+        for (int t = 0; t < turns; t++) {
+            _cache.Clear();
+            Combinations = 0;
+            Results.Clear();
+            SolveInternal(candidates, goal);
+        }
+
         Results.Sort(OperationsComparer);
     }
 
