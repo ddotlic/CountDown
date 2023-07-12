@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using Packed = System.ValueTuple<long, long>;
 
 namespace CountDown;
 
@@ -73,12 +72,10 @@ public class AppRes : Result {
 public static class Solver {
     private static readonly Op[] _operations = { Op.Add, Op.Sub, Op.Mul, Op.Div };
 
-    private static readonly HashSet<Packed> _cache = new(130_000);
+    private static readonly HashSet<long> _cache = new(130_000);
 
     private static readonly Result[] _memory = new Result[16];
     private static int _offset;
-
-    private static readonly (int, int)[] _packIndices = { (0, 0), (21, 0), (42, 0), (0, 1), (21, 1), (42, 1) };
 
     public static int Combinations { get; private set; }
     public static List<Result> Results { get; } = new();
@@ -130,16 +127,18 @@ public static class Solver {
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static Packed PackCandidates(Span<Result> candidates) {
+    private static long PackCandidates(Span<Result> candidates) {
         var canLen = candidates.Length;
-        Span<long> nums = stackalloc long[2];
+        long result = 0;
+        int shift = 0;
         for (var c = 0; c < canLen; ++c) {
-            var (shift, ix) = _packIndices[c];
-            nums[ix] |= candidates[c].Total << shift;
+            result |= candidates[c].Total << shift;
+            shift += 7;
         }
 
-        return new Packed(nums[1], nums[0]);
+        return result;
     }
+    
 
     private static void SolveInternal(Span<Result> candidates, long goal) {
         var packed = PackCandidates(candidates);
